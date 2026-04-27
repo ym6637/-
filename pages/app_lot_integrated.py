@@ -11,7 +11,12 @@ from matplotlib import font_manager, rcParams
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 from streamlit_autorefresh import st_autorefresh
 from streamlit_extras.stylable_container import stylable_container
-from ultralytics import YOLO
+try:
+    from ultralytics import YOLO
+    YOLO_IMPORT_ERROR = None
+except Exception as exc:
+    YOLO = None
+    YOLO_IMPORT_ERROR = exc
 
 try:
     import pillow_avif  # noqa: F401
@@ -145,6 +150,18 @@ def get_file_time_str(file_path: str):
         return "-"
 
 
+def infer_defect_types_from_filename(image_path: str):
+    name = os.path.basename(image_path)
+    mapping = {
+        "도금": "plating",
+        "스크래치": "scratch",
+        "오염": "contamination",
+        "핀홀": "pinhole",
+    }
+    defect_types = [eng for key, eng in mapping.items() if key in name]
+    return sorted(defect_types)
+
+
 def judge_status(boxes) -> str:
     return "불량" if len(boxes) > 0 else "정상"
 
@@ -205,8 +222,17 @@ def get_status_render_data(status: str, alarm_level: str):
 # 모델 로드
 # --------------------------
 set_korean_font()
-model = YOLO(MODEL_PATH)
-st.write("현재 모델:", model.ckpt_path)
+model = None
+if YOLO is not None:
+    try:
+        model = YOLO(MODEL_PATH)
+    except Exception as exc:
+        YOLO_IMPORT_ERROR = exc
+
+if model is not None:
+    st.write("현재 모델:", model.ckpt_path)
+else:
+    st.info("배포 환경에서 YOLO/OpenCV를 불러오지 못해 파일명 기반 판정 모드로 실행 중입니다.")
 
 
 @st.cache_data(show_spinner=False)
@@ -214,6 +240,15 @@ def predict_with_yolo(image_path: str):
     boxes_data = []
     if not os.path.exists(image_path):
         return boxes_data
+
+    if model is None:
+        return [
+            {
+                "class_name": defect_type,
+                "conf": 1.0,
+            }
+            for defect_type in infer_defect_types_from_filename(image_path)
+        ]
 
     if os.path.splitext(image_path)[1].lower() == ".avif":
         try:
@@ -337,6 +372,8 @@ def draw_boxes(image, boxes):
     }
 
     for box in boxes:
+        if not all(key in box for key in ("x", "y", "w", "h")):
+            continue
         x, y, bw, bh = box["x"], box["y"], box["w"], box["h"]
         name = box["class_name"]
 
