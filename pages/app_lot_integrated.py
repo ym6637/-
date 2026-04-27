@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Optional
 from textwrap import dedent
 
-import cv2
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -125,13 +124,7 @@ def calculate_recent_defect_rate(df, window=10):
 
 def read_image_korean_path(image_path: str):
     try:
-        data = np.fromfile(image_path, dtype=np.uint8)
-        image_bgr = cv2.imdecode(data, cv2.IMREAD_COLOR)
-        if image_bgr is not None:
-            return image_bgr
-
-        image_rgb = np.array(Image.open(image_path).convert("RGB"))
-        return cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+        return np.array(Image.open(image_path).convert("RGB"))
     except Exception:
         return None
 
@@ -1332,7 +1325,7 @@ if image_bgr is None:
     st.error(f"이미지를 읽을 수 없습니다: {selected_img_path}")
     st.stop()
 
-image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+image_rgb = image_bgr
 boxed_image = draw_boxes(image_rgb, boxes)
 
 # --------------------------
@@ -1496,7 +1489,7 @@ with left:
 
                 image_bgr = read_image_korean_path(selected_img_path)
                 if image_bgr is not None:
-                    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+                    image_rgb = image_bgr
                     boxed_image = draw_boxes(image_rgb, boxes)
 
         with control2:
@@ -1600,8 +1593,7 @@ with right:
 
                 with h1:
                     if thumb is not None:
-                        thumb_rgb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
-                        st.image(thumb_rgb)
+                        st.image(thumb)
 
                 with h2:
                     badge = "badge-normal" if row["status"] == "정상" else "badge-defect"
