@@ -8,10 +8,15 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from matplotlib import font_manager, rcParams
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 from streamlit_autorefresh import st_autorefresh
 from streamlit_extras.stylable_container import stylable_container
 from ultralytics import YOLO
+
+try:
+    import pillow_avif  # noqa: F401
+except Exception:
+    pillow_avif = None
 
 
 # --------------------------
@@ -125,6 +130,8 @@ def calculate_recent_defect_rate(df, window=10):
 def read_image_korean_path(image_path: str):
     try:
         return np.array(Image.open(image_path).convert("RGB"))
+    except UnidentifiedImageError:
+        return None
     except Exception:
         return None
 
@@ -208,7 +215,12 @@ def predict_with_yolo(image_path: str):
         return boxes_data
 
     if os.path.splitext(image_path)[1].lower() == ".avif":
-        source = np.array(Image.open(image_path).convert("RGB"))
+        try:
+            source = np.array(Image.open(image_path).convert("RGB"))
+        except UnidentifiedImageError:
+            return boxes_data
+        except Exception:
+            return boxes_data
     else:
         source = image_path
 
