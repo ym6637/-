@@ -11,12 +11,18 @@ from matplotlib import font_manager, rcParams
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 from streamlit_autorefresh import st_autorefresh
 from streamlit_extras.stylable_container import stylable_container
-try:
-    from ultralytics import YOLO
-    YOLO_IMPORT_ERROR = None
-except Exception as exc:
+USE_YOLO = os.getenv("ENABLE_YOLO", "0").strip().lower() in {"1", "true", "yes", "on"}
+
+if USE_YOLO:
+    try:
+        from ultralytics import YOLO
+        YOLO_IMPORT_ERROR = None
+    except Exception as exc:
+        YOLO = None
+        YOLO_IMPORT_ERROR = exc
+else:
     YOLO = None
-    YOLO_IMPORT_ERROR = exc
+    YOLO_IMPORT_ERROR = "YOLO disabled by default to keep Streamlit Cloud memory usage low."
 
 try:
     import pillow_avif  # noqa: F401
@@ -40,6 +46,10 @@ BOTTOM_HEIGHT = "360px"
 HISTORY_PAGE_SIZE = 3
 REFRESH_MS = 2000  # 2초마다 이미지 자동 전환
 DISPLAY_LOT_COUNT = 22
+LIVE_HISTORY_LIMIT = 60
+LOT_HISTORY_LIMIT = 24
+DISPLAY_IMAGE_MAX_SIDE = 1280
+THUMBNAIL_MAX_SIDE = 320
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGE_DIR = os.path.join(BASE_DIR, "converted_avif_lossless")
@@ -133,9 +143,11 @@ def calculate_recent_defect_rate(df, window=10):
     return recent_rate, level_icon, level, trend_icon, trend
 
 
-def read_image_korean_path(image_path: str):
+def read_image_korean_path(image_path: str, max_side: int = DISPLAY_IMAGE_MAX_SIDE):
     try:
-        return np.array(Image.open(image_path).convert("RGB"))
+        image = Image.open(image_path).convert("RGB")
+        image.thumbnail((max_side, max_side))
+        return np.array(image)
     except UnidentifiedImageError:
         return None
     except Exception:
@@ -252,7 +264,9 @@ def predict_with_yolo(image_path: str):
 
     if os.path.splitext(image_path)[1].lower() == ".avif":
         try:
-            source = np.array(Image.open(image_path).convert("RGB"))
+            source = read_image_korean_path(image_path, max_side=960)
+            if source is None:
+                return boxes_data
         except UnidentifiedImageError:
             return boxes_data
         except Exception:
@@ -1356,8 +1370,20 @@ current_lot_no = image_to_lot.get(selected_image)
 
 prefetch_next_lot_prediction(image_files, st.session_state["selected_idx"])
 
-update_live_history(selected_image, status, defect_types=defect_types, current_lot_no=current_lot_no)
-update_lot_history(current_lot_no, selected_image, status, defect_types=defect_types)
+update_live_history(
+    selected_image,
+    status,
+    defect_types=defect_types,
+    current_lot_no=current_lot_no,
+    max_len=LIVE_HISTORY_LIMIT,
+)
+update_lot_history(
+    current_lot_no,
+    selected_image,
+    status,
+    defect_types=defect_types,
+    max_len=LOT_HISTORY_LIMIT,
+)
 recent_rate, level_icon, level, trend_icon, trend = calculate_live_defect_rate(
     window=20,
     trend_threshold=5.0
@@ -1387,7 +1413,7 @@ live_card_class = render_data["live_card_class"]
 status_html = render_data["status_html"]
 status_badge = render_data["status_badge"]
 
-image_bgr = read_image_korean_path(selected_img_path)
+image_bgr = read_image_korean_path(selected_img_path, max_side=DISPLAY_IMAGE_MAX_SIDE)
 if image_bgr is None:
     st.error(f"이미지를 읽을 수 없습니다: {selected_img_path}")
     st.stop()
@@ -1554,7 +1580,7 @@ with left:
                 status_html = render_data["status_html"]
                 status_badge = render_data["status_badge"]
 
-                image_bgr = read_image_korean_path(selected_img_path)
+                image_bgr = read_image_korean_path(selected_img_path, max_side=DISPLAY_IMAGE_MAX_SIDE)
                 if image_bgr is not None:
                     image_rgb = image_bgr
                     boxed_image = draw_boxes(image_rgb, boxes)
@@ -1658,7 +1684,7 @@ with right:
 
                 h1, h2 = st.columns([1, 2.2])
                 img_thumb_path = os.path.join(IMAGE_DIR, row["file"])
-                thumb = read_image_korean_path(img_thumb_path)
+                thumb = read_image_korean_path(img_thumb_path, max_side=THUMBNAIL_MAX_SIDE)
 
                 with h1:
                     if thumb is not None:
