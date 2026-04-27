@@ -1161,10 +1161,53 @@ hr {
 .result-bottom-anchor {
     margin-top: auto;
 }
+.stButton > button[kind="primary"] {
+    background-color: #F0EEF3 !important;
+    color: #212529 !important;
+    border: 1px solid #d5d1db !important;
+    font-weight: bold !important;
+}
+.stButton > button[kind="primary"] * {
+    color: #212529 !important;
+}
+.stButton > button[kind="primary"]:hover {
+    background-color: #e6e1ec !important;
+    border-color: #c9c1d1 !important;
+}
 </style>
 """,
     unsafe_allow_html=True,
 )
+
+header_left, header_center, header_right = st.columns([1.2, 8, 1.2])
+
+with header_left:
+    if st.button(
+        "← 메인",
+        key="top_main_btn",
+        use_container_width=True,
+        type="primary",
+    ):
+        st.switch_page("dashboard.py")
+
+with header_right:
+    if st.button(
+        "크로메이트 →",
+        key="top_chromate_btn",
+        use_container_width=True,
+        type="primary",
+    ):
+        st.switch_page("pages/chromate.py")
+
+with header_center:
+    st.markdown(
+        """
+        <h1 style='text-align: center; margin: 0; white-space: nowrap;'>
+            크로메이트 공정 불량 검출 대시보드
+        </h1>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # --------------------------
 # 데이터 준비
@@ -1469,11 +1512,6 @@ if lot_rows and current_lot_no is not None:
     lot_selected_row["severity_bucket"] = severity_bucket
 
 current_lot_value = f"{lot_selected_row['Lot']} / {DISPLAY_LOT_COUNT} Lots" if lot_selected_row is not None else f"- / {DISPLAY_LOT_COUNT} Lots"
-
-# --------------------------
-# 상단 제목
-# --------------------------
-st.markdown('<div class="main-title">크로메이트 공정 불량 검출 대시보드</div>', unsafe_allow_html=True)
 
 # --------------------------
 # KPI
