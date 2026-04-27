@@ -1192,7 +1192,7 @@ with header_left:
 
 with header_right:
     if st.button(
-        "크로메이트 →",
+        "이상탐지 →",
         key="top_chromate_btn",
         use_container_width=True,
         type="primary",
