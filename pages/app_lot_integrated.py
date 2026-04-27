@@ -11,7 +11,7 @@ from matplotlib import font_manager, rcParams
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
 from streamlit_autorefresh import st_autorefresh
 from streamlit_extras.stylable_container import stylable_container
-USE_YOLO = os.getenv("ENABLE_YOLO", "0").strip().lower() in {"1", "true", "yes", "on"}
+USE_YOLO = os.getenv("ENABLE_YOLO", "1").strip().lower() in {"1", "true", "yes", "on"}
 
 if USE_YOLO:
     try:
@@ -569,10 +569,10 @@ def build_balanced_lot_demo_data(image_names, target_count=DISPLAY_LOT_COUNT, se
         representative_path = os.path.join(IMAGE_DIR, representative_image) if lot_images else ""
 
         if lot_images:
-            # Keep runtime work bounded in deployment by using one representative
-            # image per LOT instead of replaying the full folder on first load.
-            ordered_images.append(representative_image)
-            image_to_lot[representative_image] = lot_no
+            # Replay all images grouped by LOT order: LOT 1 images first, then LOT 2, etc.
+            ordered_images.extend(lot_images)
+            for image_name in lot_images:
+                image_to_lot[image_name] = lot_no
 
         lot_rows.append(
             {
