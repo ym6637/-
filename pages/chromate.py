@@ -37,8 +37,6 @@ SINGLE_LOT_SERIES_OPACITY = 1.0
 # 1. 페이지 설정 및 스타일
 # =========================================================
 st.set_page_config(layout="wide")
-
-st.set_page_config(layout="wide")
 OPERATORS = ["손준호", "최윤호", "손영민", "허가은", "신소망", "윤다빈"]
 NOTIFY_TARGETS = ["김윤환", "손보미", "신재춘", "박영선", "김준성"]
 
