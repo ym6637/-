@@ -7,6 +7,7 @@ tensorflow>=2.16,<2.18
 ultralytics>=8.3,<9
 plotly>=5.24,<6
 joblib>=1.4,<2
+scikit-learn>=1.5,<2
 streamlit-autorefresh>=1.0,<2
 streamlit-extras>=0.5,<1
 matplotlib>=3.8,<4
