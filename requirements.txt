@@ -1,0 +1,7 @@
+streamlit>=1.44,<2
+numpy>=1.26,<2
+pandas>=2.2,<3
+h5py>=3.10,<4
+openai>=1.76,<2
+tensorflow>=2.16,<2.18
+ultralytics>=8.3,<9
