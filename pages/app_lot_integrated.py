@@ -291,6 +291,28 @@ def classify_image_status(image_path: str):
     return judge_status(boxes)
 
 
+@st.cache_data(show_spinner=False)
+def get_prediction_bundle(image_path: str):
+    boxes = predict_with_yolo(image_path)
+    return {
+        "boxes": boxes,
+        "status": judge_status(boxes),
+        "defect_types": get_defect_types(boxes),
+        "action_text": recommend_action(boxes),
+        "alarm_level": get_alarm_level(boxes),
+        "selected_time": get_file_time_str(image_path),
+    }
+
+
+def prefetch_next_lot_prediction(image_files, current_idx: int):
+    if not image_files:
+        return
+    next_idx = (current_idx + 1) % len(image_files)
+    next_image = image_files[next_idx]
+    next_img_path = os.path.join(IMAGE_DIR, next_image)
+    get_prediction_bundle(next_img_path)
+
+
 def build_stratified_shuffled_images(image_files, seed=42):
     normal_files = []
     defect_files = []
@@ -1062,8 +1084,8 @@ hr {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    padding-top: 8px;
-    padding-left: 8px;
+    padding-top: 2px;
+    padding-left: 4px;
 }
 .live-time-only {
     color: #475467;
@@ -1205,17 +1227,6 @@ else:
     if st.session_state.get("selected_image") in image_files:
         st.session_state["selected_idx"] = image_files.index(st.session_state["selected_image"])
 
-# --------------------------
-# 로그 / KPI 계산
-# --------------------------
-log_rows = build_log_rows(image_files)
-log_rows_sorted = sorted(log_rows, key=lambda x: x["시간"], reverse=True)
-
-df = pd.DataFrame(log_rows_sorted)
-df["Defect"] = df["판정"].apply(lambda x: 1 if x == "불량" else 0)
-
-
-
 def update_live_history(selected_image: str, status: str, defect_types=None, current_lot_no=None, max_len: Optional[int] = None):
     if "live_history" not in st.session_state:
         st.session_state["live_history"] = []
@@ -1334,13 +1345,16 @@ st.session_state["selected_idx"] = image_files.index(selected_image)
 # 선택 이미지 처리
 # --------------------------
 selected_img_path = os.path.join(IMAGE_DIR, selected_image)
-boxes = predict_with_yolo(selected_img_path)
-status = judge_status(boxes)
-defect_types = get_defect_types(boxes)
-action_text = recommend_action(boxes)
-alarm_level = get_alarm_level(boxes)
-selected_time = get_file_time_str(selected_img_path)
+prediction = get_prediction_bundle(selected_img_path)
+boxes = prediction["boxes"]
+status = prediction["status"]
+defect_types = prediction["defect_types"]
+action_text = prediction["action_text"]
+alarm_level = prediction["alarm_level"]
+selected_time = prediction["selected_time"]
 current_lot_no = image_to_lot.get(selected_image)
+
+prefetch_next_lot_prediction(image_files, st.session_state["selected_idx"])
 
 update_live_history(selected_image, status, defect_types=defect_types, current_lot_no=current_lot_no)
 update_lot_history(current_lot_no, selected_image, status, defect_types=defect_types)
@@ -1528,13 +1542,13 @@ with left:
                 st.session_state["selected_idx"] = image_files.index(selected_image)
 
                 selected_img_path = os.path.join(IMAGE_DIR, selected_image)
-                selected_time = get_file_time_str(selected_img_path)
-
-                boxes = predict_with_yolo(selected_img_path)
-                status = judge_status(boxes)
-                defect_types = get_defect_types(boxes)
-                action_text = recommend_action(boxes)
-                alarm_level = get_alarm_level(boxes)
+                prediction = get_prediction_bundle(selected_img_path)
+                boxes = prediction["boxes"]
+                status = prediction["status"]
+                defect_types = prediction["defect_types"]
+                action_text = prediction["action_text"]
+                alarm_level = prediction["alarm_level"]
+                selected_time = prediction["selected_time"]
 
                 render_data = get_status_render_data(status, alarm_level)
                 status_html = render_data["status_html"]
@@ -1544,6 +1558,8 @@ with left:
                 if image_bgr is not None:
                     image_rgb = image_bgr
                     boxed_image = draw_boxes(image_rgb, boxes)
+
+                prefetch_next_lot_prediction(image_files, st.session_state["selected_idx"])
 
         with control2:
             st.markdown(
@@ -1555,7 +1571,7 @@ with left:
                 unsafe_allow_html=True,
             )
 
-        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:2px;'></div>", unsafe_allow_html=True)
         st.image(boxed_image, use_container_width=True)
 
 with mid:
