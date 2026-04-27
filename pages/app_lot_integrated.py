@@ -39,6 +39,7 @@ DISPLAY_LOT_COUNT = 22
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGE_DIR = os.path.join(BASE_DIR, "converted_avif_lossless")
 LOT_MAP_CSV = os.path.join(BASE_DIR, "LOT_IMAGE_MAP_CLEAN_READY.csv")
+MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
 LOT_HISTORY_PAGE_SIZE = 5
 
 CLASS_NAMES = {
@@ -204,7 +205,7 @@ def get_status_render_data(status: str, alarm_level: str):
 # 모델 로드
 # --------------------------
 set_korean_font()
-model = YOLO("best.pt")
+model = YOLO(MODEL_PATH)
 st.write("현재 모델:", model.ckpt_path)
 
 
@@ -382,6 +383,7 @@ def draw_boxes(image, boxes):
     return np.array(img_pil)
 
 
+@st.cache_data(show_spinner=False)
 def build_log_rows(image_files):
     rows = []
     for img_name in image_files:
@@ -490,12 +492,14 @@ def build_balanced_lot_demo_data(image_names, target_count=DISPLAY_LOT_COUNT, se
         lot_images = shuffled[cursor:cursor + image_count]
         cursor += image_count
 
-        ordered_images.extend(lot_images)
-        for image_name in lot_images:
-            image_to_lot[image_name] = lot_no
-
         representative_image = lot_images[0] if lot_images else "-"
         representative_path = os.path.join(IMAGE_DIR, representative_image) if lot_images else ""
+
+        if lot_images:
+            # Keep runtime work bounded in deployment by using one representative
+            # image per LOT instead of replaying the full folder on first load.
+            ordered_images.append(representative_image)
+            image_to_lot[representative_image] = lot_no
 
         lot_rows.append(
             {
