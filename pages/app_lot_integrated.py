@@ -1671,30 +1671,19 @@ with right:
                 )
 
             with pager_center:
-                page_text_col, page_input_col, page_total_col = st.columns([1.05, 0.9, 1.05])
-
-                with page_text_col:
-                    st.markdown(
-                        "<div class='small-text' style='text-align:right;padding-top:6px;'>페이지</div>",
-                        unsafe_allow_html=True,
-                    )
-
-                with page_input_col:
-                    st.number_input(
-                        "페이지 직접 이동",
-                        min_value=1,
-                        max_value=local_total_pages,
-                        step=1,
-                        key="history_page_input",
-                        label_visibility="collapsed",
-                        on_change=sync_history_page_from_input,
-                    )
-
-                with page_total_col:
-                    st.markdown(
-                        f"<div class='small-text' style='text-align:left;padding-top:6px;'>/ {local_total_pages}</div>",
-                        unsafe_allow_html=True,
-                    )
+                st.markdown(
+                    f"<div class='small-text' style='text-align:center;padding-top:6px;'>페이지 {local_history_page} / {local_total_pages}</div>",
+                    unsafe_allow_html=True,
+                )
+                st.number_input(
+                    "페이지 직접 이동",
+                    min_value=1,
+                    max_value=local_total_pages,
+                    step=1,
+                    key="history_page_input",
+                    label_visibility="collapsed",
+                    on_change=sync_history_page_from_input,
+                )
 
             with pager_right:
                 st.button(
